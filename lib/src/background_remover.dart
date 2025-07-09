@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:ui' as ui;
-
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,6 +25,23 @@ class BackgroundRemover {
 
   int modelSize = 320;
 
+  int _getImageMemoryUsage(int width, int height) {
+    // RGBA format: 4 bytes per pixel
+    // Plus overhead for processing (multiple copies during processing)
+    return width * height * 4 * 3; // 3x for processing overhead
+  }
+
+  /// Gets available memory for image processing (conservative estimate)
+  int _getAvailableMemory() {
+    if (kIsWeb) {
+      // Web has more limited memory
+      return 100 * 1024 * 1024; // 100MB
+    } else {
+      // Mobile devices - conservative estimate
+      return 200 * 1024 * 1024; // 200MB
+    }
+  }
+
   /// Initializes the ONNX environment and creates a session.
   ///
   /// This method should be called once before using the [removeBg] method.
@@ -39,6 +56,44 @@ class BackgroundRemover {
       log(e.toString());
     }
   }
+
+  // Compresses image if it's too large while maintaining quality
+  Future<Uint8List> _compressImageIfNeeded(Uint8List imageBytes) async {
+    final originalImage = img.decodeImage(imageBytes);
+    if (originalImage == null) return imageBytes;
+
+    final estimatedMemoryUsage = _getImageMemoryUsage(originalImage.width, originalImage.height);
+    final availableMemory = _getAvailableMemory();
+
+    // If estimated memory usage is within safe limits, return original
+    if (estimatedMemoryUsage <= availableMemory) {
+      return imageBytes;
+    }
+
+    // Calculate scale factor based on memory constraints
+    final memoryRatio = availableMemory / estimatedMemoryUsage;
+    final scaleFactor = math.sqrt(memoryRatio * 0.8); // 0.8 for safety margin
+
+    final newWidth = (originalImage.width * scaleFactor).round();
+    final newHeight = (originalImage.height * scaleFactor).round();
+
+    log('Compressing image from ${originalImage.width}x${originalImage.height} to ${newWidth}x${newHeight}');
+
+    final originalPixels = originalImage.width * originalImage.height;
+    final newPixels = newWidth * newHeight;
+    final percent = 100 - ((newPixels / originalPixels) * 100);
+    log('Image compressed by ${percent.toStringAsFixed(2)}%');
+
+    final compressed = img.copyResize(
+      originalImage,
+      width: newWidth,
+      height: newHeight,
+      interpolation: img.Interpolation.linear,
+    );
+
+    return Uint8List.fromList(img.encodePng(compressed));
+  }
+
 
   /// Creates an ONNX session using the model from assets.
   Future<void> _createSession() async {
@@ -93,11 +148,19 @@ class BackgroundRemover {
       throw Exception("ONNX session not initialized");
     }
 
-    /// Decode the input image
-    final originalImage = await decodeImageFromList(imageBytes);
-    log('Original image size: ${originalImage.width}x${originalImage.height}');
+    // Compress image if needed to prevent memory issues
+    final compressedBytes = await _compressImageIfNeeded(imageBytes);
 
-    final resizedImage = await _resizeImage(originalImage, 320, modelSize);
+    ui.Image? originalImage;
+    ui.Image? resizedImage;
+    ui.Image? result;
+
+    try {
+      /// Decode the input image
+      originalImage = await decodeImageFromList(compressedBytes);
+      log('Processing image size: ${originalImage.width}x${originalImage.height}');
+
+      resizedImage = await _resizeImage(originalImage, 320, modelSize);
 
     /// Convert the resized image into a tensor format required by the ONNX model.
     final rgbFloats = await _imageToFloatTensor(resizedImage);
@@ -128,13 +191,29 @@ class BackgroundRemover {
           ? await _enhanceMaskEdges(originalImage, resizedMask)
           : resizedMask;
 
-      /// Apply the mask to the original image
-      var image = await _applyMaskToOriginalSizeImage(originalImage, finalMask,
-          threshold: threshold, smooth: smoothMask);
-      Uint8List imageList = await convertUiImageToPngBytes(image);
-      return imageList;
-    } else {
-      throw Exception('Unexpected output format from ONNX model.');
+        /// Apply the mask to the original image
+        result = await _applyMaskToOriginalSizeImage(originalImage, finalMask,
+            threshold: threshold, smooth: smoothMask);
+
+        final imageList = await convertUiImageToPngBytes(result);
+
+      /// Release the ONNX session resources
+      outputs?.forEach((output) {
+        output?.release();
+      });
+
+        return imageList;
+      } else {
+        throw Exception('Unexpected output format from ONNX model.');
+      }
+    } catch (e) {
+      log('Error in removeBg: $e');
+      rethrow;
+    } finally {
+      // Dispose of images to free memory
+      originalImage?.dispose();
+      resizedImage?.dispose();
+      result?.dispose();
     }
   }
 
@@ -433,64 +512,73 @@ class BackgroundRemover {
         required Color strokeColor,
         Color secondaryStrokeColor = Colors.black,
         double strokeWidthMM = 2.0,
-        double secondaryStrokeWidthMM = 0.0, // Optional
+        double secondaryStrokeWidthMM = 0.0,
         double dpi = 300,
       }) async {
-    // 1. Convert mm to px
-    final targetWidthPx = ((targetWidthMM / 25.4) * dpi).round();
-    final targetHeightPx = ((targetHeightMM / 25.4) * dpi).round();
-    final strokePx = ((strokeWidthMM / 25.4) * dpi).round();
-    final secondaryStrokePx = ((secondaryStrokeWidthMM / 25.4) * dpi).round();
 
-    // 2. Remove background
-    final bgRemoved = await removeBg(inputImageBytes);
-    final image = img.decodeImage(bgRemoved)!;
+    ui.Image? uiImage;
+    ui.Image? padded;
+    ui.Image? finalImage;
 
-    // 3. Maintain aspect ratio
-    final srcWidth = image.width;
-    final srcHeight = image.height;
-    final srcAspectRatio = srcWidth / srcHeight;
-    final targetAspectRatio = targetWidthPx / targetHeightPx;
+    try {
+      // 1. Convert mm to px
+      final targetWidthPx = ((targetWidthMM / 25.4) * dpi).round();
+      final targetHeightPx = ((targetHeightMM / 25.4) * dpi).round();
+      final strokePx = ((strokeWidthMM / 25.4) * dpi).round();
+      final secondaryStrokePx = ((secondaryStrokeWidthMM / 25.4) * dpi).round();
 
-    int resizedWidth, resizedHeight;
-    if (srcAspectRatio > targetAspectRatio) {
-      // Image is wider than target area
-      resizedWidth = targetWidthPx;
-      resizedHeight = (targetWidthPx / srcAspectRatio).round();
-    } else {
-      // Image is taller than target area
-      resizedHeight = targetHeightPx;
-      resizedWidth = (targetHeightPx * srcAspectRatio).round();
+      // 2. Remove background with compression
+      final bgRemoved = await removeBg(inputImageBytes);
+      final image = img.decodeImage(bgRemoved)!;
+
+      // 3. Maintain aspect ratio and resize
+      final srcWidth = image.width;
+      final srcHeight = image.height;
+      final srcAspectRatio = srcWidth / srcHeight;
+      final targetAspectRatio = targetWidthPx / targetHeightPx;
+
+      int resizedWidth, resizedHeight;
+      if (srcAspectRatio > targetAspectRatio) {
+        resizedWidth = targetWidthPx;
+        resizedHeight = (targetWidthPx / srcAspectRatio).round();
+      } else {
+        resizedHeight = targetHeightPx;
+        resizedWidth = (targetHeightPx * srcAspectRatio).round();
+      }
+
+      final resized = img.copyResize(
+        image,
+        width: resizedWidth,
+        height: resizedHeight,
+        interpolation: img.Interpolation.linear,
+      );
+
+      // 4. Convert to ui.Image
+      uiImage = await convertImageToUiImage(resized);
+
+      // 5. Pad to ensure space for stroke
+      padded = await padImageWithTransparentBorder(
+        uiImage,
+        strokePx + secondaryStrokePx + 10,
+      );
+
+      // 6. Add stroke
+      finalImage = await addDualStrokeToTransparentImage(
+        image: padded,
+        innerBorderColor: strokeColor,
+        innerBorderWidth: strokePx.toDouble(),
+        outerBorderColor: secondaryStrokeColor.withOpacity(0.2),
+        outerBorderWidth: secondaryStrokePx.toDouble(),
+      );
+
+      // 7. Encode final image
+      return await convertUiImageToPngBytes(finalImage);
+    } finally {
+      // Clean up UI images
+      uiImage?.dispose();
+      padded?.dispose();
+      finalImage?.dispose();
     }
-
-    final resized = img.copyResize(
-      image,
-      width: resizedWidth,
-      height: resizedHeight,
-      interpolation: img.Interpolation.linear,
-    );
-
-    // 4. Convert to ui.Image
-    final uiImage = await convertImageToUiImage(resized);
-
-    // 5. Pad to ensure space for stroke
-    final padded = await padImageWithTransparentBorder(
-      uiImage,
-      strokePx + secondaryStrokePx + 10,
-    );
-
-    // 6. Add stroke
-    final finalImage = await addDualStrokeToTransparentImage(
-      image: padded,
-      innerBorderColor: strokeColor,
-      innerBorderWidth: strokePx.toDouble(),
-      outerBorderColor: secondaryStrokeColor.withOpacity(0.2),
-      outerBorderWidth: secondaryStrokePx.toDouble(),
-    );
-
-    // 7. Encode final image
-    final png = await convertUiImageToPngBytes(finalImage);
-    return png;
   }
 
 
@@ -651,20 +739,21 @@ class BackgroundRemover {
   void dispose() {
     _session?.release();
     _session = null;
+    OrtEnv.instance.release();
   }
 
   Future<ui.Image> decodeImageFromList(Uint8List bytes) async {
     final ui.ImmutableBuffer buffer =
-        await ui.ImmutableBuffer.fromUint8List(bytes);
+    await ui.ImmutableBuffer.fromUint8List(bytes);
     final ui.Codec codec =
-        await PaintingBinding.instance.instantiateImageCodecWithSize(buffer);
+    await PaintingBinding.instance.instantiateImageCodecWithSize(buffer);
     final ui.FrameInfo frameInfo = await codec.getNextFrame();
     return frameInfo.image;
   }
 
   Future<Uint8List> convertUiImageToPngBytes(ui.Image image) async {
     final ByteData? byteData =
-        await image.toByteData(format: ui.ImageByteFormat.png);
+    await image.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
   }
 }
