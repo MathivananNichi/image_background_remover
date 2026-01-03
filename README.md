@@ -15,7 +15,6 @@ A Flutter package that removes the background from images using an ONNX model. T
 - ✅ **16KB Android Page Size Support** - Compatible with Google Play's 16KB requirement
 - ✅ **Modular Architecture** - Organized codebase with separate utilities
 - ✅ **Improved Memory Management** - Better resource cleanup
-- ✅ **Enhanced Documentation** - Comprehensive guides and examples
 - ⚠️ **Important**: Cannot be used with Dart isolates (see [Why No Isolates](WHY_NO_ISOLATES.md))
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed migration notes.
@@ -73,8 +72,7 @@ await BackgroundRemover.instance.dispose();
    ```dart
    @override
    void dispose() {
-     // Works, but consider making it async-aware in the future
-     BackgroundRemover.instance.dispose();
+     BackgroundRemover.instance.dispose(); // `dispose()` is async internally
      super.dispose();
    }
    ```

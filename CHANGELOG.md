@@ -4,7 +4,7 @@
 
 #### Breaking Changes
 - **Migrated from `onnxruntime` to `flutter_onnxruntime`** package for better maintenance and support
-- `dispose()` method is now asynchronous - must be called with `await`
+- `dispose()` method is now asynchronous internally (no user code changes required)
 
 #### New Features
 - **Modular Architecture**: Refactored codebase into organized modules for better maintainability
@@ -41,23 +41,17 @@
 
 #### Migration from v1.x
 If upgrading from v1.x:
-1. Update your dispose call to be async:
+1. **No code changes required!** The dispose call remains the same:
    ```dart
-   // Old (v1.x)
    @override
    void dispose() {
      BackgroundRemover.instance.dispose();
      super.dispose();
    }
-   
-   // New (v2.0.0)
-   @override
-   void dispose() {
-     BackgroundRemover.instance.dispose(); // Still works but recommended to make it async-aware
-     super.dispose();
-   }
    ```
-2. No other changes required - the public API remains the same!
+   Note: Even though `dispose()` is async internally, you should **not** await it in your widget's dispose method because Flutter's dispose must be synchronous.
+
+2. The public API remains completely backward compatible!
 
 ---
 
