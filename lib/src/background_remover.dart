@@ -5,10 +5,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 import 'package:image_background_remover/assets.dart';
-
 import 'package:image/image.dart' as img;
-import 'package:onnxruntime/onnxruntime.dart';
 
 class BackgroundRemover {
   BackgroundRemover._internal();
@@ -16,6 +15,9 @@ class BackgroundRemover {
   static final BackgroundRemover _instance = BackgroundRemover._internal();
 
   static BackgroundRemover get instance => _instance;
+
+  // The ONNX runtime instance
+  final OnnxRuntime _ort = OnnxRuntime();
 
   // The ONNX session used for inference.
   OrtSession? _session;
@@ -31,9 +33,6 @@ class BackgroundRemover {
   /// This method should be called once before using the [removeBg] method.
   Future<void> initializeOrt() async {
     try {
-      /// Initialize the ONNX runtime environment.
-      OrtEnv.instance.init();
-
       /// Create the ONNX session.
       await _createSession();
     } catch (e) {
@@ -44,20 +43,14 @@ class BackgroundRemover {
   /// Creates an ONNX session using the model from assets.
   Future<void> _createSession() async {
     try {
-      /// Session configuration options.
-      final sessionOptions = OrtSessionOptions();
+      /// Create the ONNX session from asset.
+      _session = await _ort.createSessionFromAsset(Assets.modelPath);
 
-      /// Load the model as a raw asset.
-      final rawAssetFile = await rootBundle.load(Assets.modelPath);
-
-      /// Convert the asset to a byte array.
-      final bytes = rawAssetFile.buffer.asUint8List();
-
-      /// Create the ONNX session.
-      _session = OrtSession.fromBuffer(bytes, sessionOptions);
-      sessionOptions.release();
       if (kDebugMode) {
         log('ONNX session created successfully.', name: "BackgroundRemover");
+        log('Input names: ${_session!.inputNames}', name: "BackgroundRemover");
+        log('Output names: ${_session!.outputNames}',
+            name: "BackgroundRemover");
       }
     } catch (e) {
       if (kDebugMode) {
@@ -104,22 +97,26 @@ class BackgroundRemover {
 
     /// Convert the resized image into a tensor format required by the ONNX model.
     final rgbFloats = await _imageToFloatTensor(resizedImage);
-    final inputTensor = OrtValueTensor.createTensorWithDataList(
+    final inputTensor = await OrtValue.fromList(
       Float32List.fromList(rgbFloats),
       [1, 3, modelSize, modelSize],
     );
 
     /// Prepare the inputs and run inference on the ONNX model.
     final inputs = {'input.1': inputTensor};
-    final runOptions = OrtRunOptions();
-    final outputs = await _session!.runAsync(runOptions, inputs);
-    inputTensor.release();
-    runOptions.release();
+    final outputs = await _session!.run(inputs);
+
+    /// Dispose the input tensor
+    await inputTensor.dispose();
 
     /// Process the output tensor and generate the final image with the background removed.
-    final outputTensor = outputs?[0]?.value;
-    if (outputTensor is List) {
-      final mask = outputTensor[0][0];
+    final outputName = _session!.outputNames.first;
+    final outputTensor = outputs[outputName];
+
+    if (outputTensor != null) {
+      // Get the data as a list with shape preserved
+      final outputData = await outputTensor.asList();
+      final mask = outputData[0][0];
 
       /// Generate and refine the mask
       final resizedMask = smoothMask
@@ -134,14 +131,12 @@ class BackgroundRemover {
       /// Apply the mask to the original image
       result = await _applyMaskToOriginalSizeImage(originalImage, finalMask,
           threshold: threshold, smooth: smoothMask);
+
+      /// Dispose output tensor
+      await outputTensor.dispose();
     } else {
       throw Exception('Unexpected output format from ONNX model.');
     }
-
-    /// Release the ONNX session resources
-    outputs?.forEach((output) {
-      output?.release();
-    });
 
     originalImage.dispose();
     resizedImage.dispose();
@@ -418,9 +413,10 @@ class BackgroundRemover {
   }
 
   /// Release resources
-  void dispose() {
-    _session?.release();
-    _session = null;
-    OrtEnv.instance.release();
+  Future<void> dispose() async {
+    if (_session != null) {
+      await _session!.close();
+      _session = null;
+    }
   }
 }

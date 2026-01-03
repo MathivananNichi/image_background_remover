@@ -11,7 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
   image: ^4.5.2
-  onnxruntime: ^1.4.1
+
+  #Due to low maintainace of this package we are migrating to new alternative package.
+  #onnxruntime: ^1.4.1
+  flutter_onnxruntime: ^1.6.1
 
 dev_dependencies:
   flutter_test:
