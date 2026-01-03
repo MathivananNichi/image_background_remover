@@ -103,6 +103,38 @@ Don't forget to dispose the onnx runtime session :
   }
   ```
 
+---
+
+# Remove Background
+
+To remove the background from an image:
+``` dart
+import 'dart:typed_data';
+import 'package:image_background_remover/image_background_remover.dart';
+
+Uint8List imageBytes = /* Load your image bytes */;
+ui.Image resultImage = await BackgroundRemover.instance.removeBg(imageBytes);
+/* resultImage will contain image with transparent background*/
+
+```
+---
+
+## 🆕 New Feature: Add Background Color
+
+You can now add a custom background color to images after removing the background.
+
+### Usage:
+
+```dart
+Uint8List modifiedImage = await BackgroundRemover.instance.addBackground(
+  image: originalImageBytes,
+  bgColor: Colors.white, // Set your desired background color
+);
+
+```
+
+---
+
   # ⚠️ Important Guidelines
 
 **Why async without isolates is fine:**
@@ -169,34 +201,6 @@ class _MyWidgetState extends State<MyWidget> {
 }
 ```
 ---
-
-# Remove Background
-
-To remove the background from an image:
-``` dart
-import 'dart:typed_data';
-import 'package:image_background_remover/image_background_remover.dart';
-
-Uint8List imageBytes = /* Load your image bytes */;
-ui.Image resultImage = await BackgroundRemover.instance.removeBg(imageBytes);
-/* resultImage will contain image with transparent background*/
-
-```
----
-
-## 🆕 New Feature: Add Background Color
-
-You can now add a custom background color to images after removing the background.
-
-### Usage:
-
-```dart
-Uint8List modifiedImage = await BackgroundRemover.instance.addBackground(
-  image: originalImageBytes,
-  bgColor: Colors.white, // Set your desired background color
-);
-
-```
 
 ## API
 
