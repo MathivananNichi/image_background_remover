@@ -168,13 +168,10 @@ class _MyWidgetState extends State<MyWidget> {
   }
 }
 ```
-
 ---
 
-## 
-```
-
 # Remove Background
+
 To remove the background from an image:
 ``` dart
 import 'dart:typed_data';
@@ -185,6 +182,7 @@ ui.Image resultImage = await BackgroundRemover.instance.removeBg(imageBytes);
 /* resultImage will contain image with transparent background*/
 
 ```
+---
 
 ## 🆕 New Feature: Add Background Color
 
@@ -269,11 +267,6 @@ lib/src/
     └── background_composer.dart   # Background composition
 ```
 
-This structure makes the codebase:
-- ✅ Easier to maintain
-- ✅ More testable
-- ✅ Better organized
-- ✅ Simpler to extend
 
 ---
 
