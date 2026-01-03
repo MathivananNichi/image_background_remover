@@ -13,6 +13,7 @@ A Flutter package that removes the background from images using an ONNX model. T
 #### What's New in v2.0.0:
 - ✅ **Migrated to `flutter_onnxruntime`** - Better maintained and more stable
 - ✅ **16KB Android Page Size Support** - Compatible with Google Play's 16KB requirement
+- ✅ **iOS 16.0+ Support** - Minimum iOS SDK version requirement updated to 16.0
 - ✅ **Modular Architecture** - Organized codebase with separate utilities
 - ✅ **Improved Memory Management** - Better resource cleanup
 - ⚠️ **Important**: Cannot be used with Dart isolates (see [Why No Isolates](WHY_NO_ISOLATES.md))
