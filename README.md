@@ -20,6 +20,17 @@ A Flutter package that removes the background from images using an ONNX model. T
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed migration notes.
 
+> **⚠️ Experiencing Issues with v2.0.0?**
+> 
+> If you encounter any problems with version 2.0.0, please:
+> 1. **[Open an issue](https://github.com/Netesh5/image_background_remover/issues)** with detailed information (error logs, device info, steps to reproduce)
+> 2. Meanwhile, you can use the **stable version v1.0.0**:
+>    ```yaml
+>    dependencies:
+>      image_background_remover: ^1.0.0
+>    ```
+> We'll work to resolve your issue as soon as possible!
+
 ---
 
 ## 🌟 Features
