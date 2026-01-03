@@ -1,4 +1,3 @@
-import 'dart:developer';
 import 'dart:ui' as ui;
 
 import 'package:example/image_picker.dart';
@@ -43,10 +42,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
-    // Note: Since dispose is synchronous, we can't await here.
-    // The session will be cleaned up by the garbage collector if not explicitly closed.
-    // For proper cleanup, consider calling BackgroundRemover.instance.dispose()
-    // in a place where async is supported, such as before app termination.
     BackgroundRemover.instance.dispose();
     super.dispose();
   }
@@ -86,38 +81,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           TextButton(
                             onPressed: () async {
-                              // Show loading indicator
-                              showDialog(
-                                context: context,
-                                barrierDismissible: false,
-                                builder: (context) => const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-
-                              try {
-                                final imageBytes = image.readAsBytesSync();
-                                final result = await BackgroundRemover.instance
-                                    .removeBg(imageBytes);
-
-                                outImg.value = result;
-                              } catch (e) {
-                                // Handle error
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                  log(e.toString(), name: "Error");
-                                }
-                              } finally {
-                                // Hide loading indicator
-                                if (context.mounted) {
-                                  Navigator.of(context).pop();
-                                }
-                              }
+                              outImg.value = await BackgroundRemover.instance
+                                  .removeBg(image.readAsBytesSync());
                             },
                             child: const Text('Remove Background'),
                           ),
