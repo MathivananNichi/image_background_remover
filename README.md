@@ -100,7 +100,10 @@ Don't forget to dispose the onnx runtime session :
   void dispose() {
     BackgroundRemover.instance.dispose();
     super.dispose();
-  }⚠️ Important Guidelines
+  }
+  ```
+
+  # ⚠️ Important Guidelines
 
 **Why async without isolates is fine:**
 - The processing is already non-blocking (async)
