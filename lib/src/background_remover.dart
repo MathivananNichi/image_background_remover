@@ -137,6 +137,56 @@ class BackgroundRemover {
     return result;
   }
 
+  /// Removes the background from an image and returns PNG bytes (isolate-compatible).
+  ///
+  /// This function is designed to work with Dart isolates. Unlike [removeBg],
+  /// it returns PNG-encoded bytes instead of a ui.Image, making it safe to use
+  /// with Isolate.run() or compute().
+  ///
+  /// - [imageBytes]: The input image as a byte array.
+  /// - [threshold]: The threshold value for foreground/background separation (default: 0.5).
+  /// - [smoothMask]: Whether to apply smoothing to the output mask (default: true).
+  /// - [enhanceEdges]: Whether to enhance mask edges using image gradients (default: true).
+  /// - Returns: PNG-encoded bytes with the background removed.
+  ///
+  /// Example usage with isolate:
+  /// ```dart
+  /// final imageBytes = await File('path_to_image').readAsBytes();
+  /// final resultBytes = await Isolate.run(() async {
+  ///   await BackgroundRemover.instance.initializeOrt();
+  ///   return await BackgroundRemover.instance.removeBgBytes(imageBytes);
+  /// });
+  /// // Convert to ui.Image if needed
+  /// final image = await decodeImageFromList(resultBytes);
+  /// ```
+  ///
+  /// Note: When using in an isolate, you must call [initializeOrt] within the isolate.
+  Future<Uint8List> removeBgBytes(
+    Uint8List imageBytes, {
+    double threshold = 0.5,
+    bool smoothMask = true,
+    bool enhanceEdges = true,
+  }) async {
+    // Process the image
+    final resultImage = await removeBg(
+      imageBytes,
+      threshold: threshold,
+      smoothMask: smoothMask,
+      enhanceEdges: enhanceEdges,
+    );
+
+    // Convert ui.Image to PNG bytes
+    final byteData =
+        await resultImage.toByteData(format: ui.ImageByteFormat.png);
+    resultImage.dispose();
+
+    if (byteData == null) {
+      throw Exception('Failed to convert image to bytes');
+    }
+
+    return byteData.buffer.asUint8List();
+  }
+
   /// Adds a background color to the given image.
   ///
   /// This method takes an image in the form of a [Uint8List] and a background

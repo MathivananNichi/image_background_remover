@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:ui' as ui;
 
 import 'package:example/image_picker.dart';
@@ -85,8 +86,48 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           TextButton(
                             onPressed: () async {
-                              outImg.value = await BackgroundRemover.instance
-                                  .removeBg(image.readAsBytesSync());
+                              // Show loading indicator
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (context) => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+
+                              try {
+                                // Process in isolate for better performance
+                                final imageBytes = image.readAsBytesSync();
+                                final resultBytes = await Isolate.run(() {
+                                  return removeBgInIsolate(
+                                    RemoveBgConfig(
+                                      imageBytes: imageBytes,
+                                      threshold: 0.5,
+                                      smoothMask: true,
+                                      enhanceEdges: true,
+                                    ),
+                                  );
+                                });
+
+                                // Convert bytes back to ui.Image
+                                outImg.value =
+                                    await decodeImageFromList(resultBytes);
+                              } catch (e) {
+                                // Handle error
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } finally {
+                                // Hide loading indicator
+                                if (context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
+                              }
                             },
                             child: const Text('Remove Background'),
                           ),
