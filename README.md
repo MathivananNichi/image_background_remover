@@ -211,7 +211,32 @@ class _MyWidgetState extends State<MyWidget> {
 | `addBackground({required Uint8List image, required Color bgColor})` | Adds a background color to the given image. | `image` - The original image in byte array format. <br> `bgColor` - The background color to be applied. | `Future<Uint8List>` - The modified image with the background color applied. |
 
 
-## ⛔️ iOS Issue
+## ⛔️ iOS Setup & Issues
+
+### Required iOS Configuration
+
+For the package to work correctly on iOS, you need to configure your iOS project:
+
+1. **Update Podfile** (`ios/Podfile`):
+   ```ruby
+   platform :ios, '16.0'  # Minimum iOS 16.0 required
+   
+   target 'Runner' do
+     use_frameworks! :linkage => :static
+     use_modular_headers!
+     
+     flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+   end
+   ```
+
+2. **Run pod install**:
+   ```bash
+   cd ios
+   pod install
+   ```
+
+### Common iOS Issues
+
 <details>
   <summary>Exception: ONNX session not initialized (iOS Release Mode & TestFlight)</summary>
   <br>
