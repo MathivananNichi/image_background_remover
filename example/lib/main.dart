@@ -1,4 +1,4 @@
-import 'dart:isolate';
+import 'dart:developer';
 import 'dart:ui' as ui;
 
 import 'package:example/image_picker.dart';
@@ -96,22 +96,11 @@ class _MyHomePageState extends State<MyHomePage> {
                               );
 
                               try {
-                                // Process in isolate for better performance
                                 final imageBytes = image.readAsBytesSync();
-                                final resultBytes = await Isolate.run(() {
-                                  return removeBgInIsolate(
-                                    RemoveBgConfig(
-                                      imageBytes: imageBytes,
-                                      threshold: 0.5,
-                                      smoothMask: true,
-                                      enhanceEdges: true,
-                                    ),
-                                  );
-                                });
+                                final result = await BackgroundRemover.instance
+                                    .removeBg(imageBytes);
 
-                                // Convert bytes back to ui.Image
-                                outImg.value =
-                                    await decodeImageFromList(resultBytes);
+                                outImg.value = result;
                               } catch (e) {
                                 // Handle error
                                 if (context.mounted) {
@@ -121,6 +110,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       backgroundColor: Colors.red,
                                     ),
                                   );
+                                  log(e.toString(), name: "Error");
                                 }
                               } finally {
                                 // Hide loading indicator
