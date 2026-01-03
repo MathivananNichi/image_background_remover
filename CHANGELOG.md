@@ -1,3 +1,66 @@
+## 2.0.0
+
+### 🎉 Major Update: Migration to flutter_onnxruntime
+
+#### Breaking Changes
+- **Migrated from `onnxruntime` to `flutter_onnxruntime`** package for better maintenance and support
+- `dispose()` method is now asynchronous - must be called with `await`
+
+#### New Features
+- **Modular Architecture**: Refactored codebase into organized modules for better maintainability
+  - `services/onnx_session_manager.dart` - ONNX Runtime session management
+  - `utils/image_processor.dart` - Image processing utilities
+  - `utils/mask_processor.dart` - Mask processing utilities
+  - `utils/background_composer.dart` - Background composition utilities
+- **Better Resource Management**: Improved memory management with proper tensor disposal
+- **Enhanced Error Handling**: More informative error messages and validation
+
+#### Improvements
+- **16KB Android Page Size Support**: Compatible with Google Play's 16KB requirement for Android 15+ devices
+- Simplified ONNX session initialization (no manual buffer loading required)
+- Better documentation with inline migration comments
+- Improved code organization and separation of concerns
+- Added comprehensive architecture documentation in `lib/src/README.md`
+
+#### Important Notes
+- **Isolate Support**: This package cannot be used with Dart isolates because ONNX model loading requires Flutter asset access. See `WHY_NO_ISOLATES.md` for detailed explanation.
+- **Async/Await**: Use async processing on the main isolate - it provides non-blocking behavior without isolate complexity
+- **Migration Guide**: All changes are marked with `// Migration:` comments in the code
+
+#### API Changes
+- Session management simplified (internal changes, no user-facing API changes)
+- Tensor creation and disposal updated to new API (handled internally)
+
+#### Files Added
+- `lib/src/services/onnx_session_manager.dart` - Session lifecycle management
+- `lib/src/utils/image_processor.dart` - Image processing utilities
+- `lib/src/utils/mask_processor.dart` - Mask manipulation utilities
+- `lib/src/utils/background_composer.dart` - Background composition
+- `lib/src/README.md` - Architecture documentation
+- `WHY_NO_ISOLATES.md` - Isolate limitations explanation
+
+#### Migration from v1.x
+If upgrading from v1.x:
+1. Update your dispose call to be async:
+   ```dart
+   // Old (v1.x)
+   @override
+   void dispose() {
+     BackgroundRemover.instance.dispose();
+     super.dispose();
+   }
+   
+   // New (v2.0.0)
+   @override
+   void dispose() {
+     BackgroundRemover.instance.dispose(); // Still works but recommended to make it async-aware
+     super.dispose();
+   }
+   ```
+2. No other changes required - the public API remains the same!
+
+---
+
 ## 1.0.0
 
 ### Fix
