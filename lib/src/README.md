@@ -1,7 +1,3 @@
-# Background Remover - Modular Architecture
-
-This directory contains the modular implementation of the background removal functionality.
-
 ## Directory Structure
 
 ```
@@ -123,24 +119,3 @@ final withBackground = await BackgroundRemover.instance.addBackground(
 await BackgroundRemover.instance.dispose();
 ```
 
----
-
-## Benefits of Modular Design
-
-1. **Maintainability**: Each module has a single, clear responsibility
-2. **Testability**: Individual utilities can be tested in isolation
-3. **Reusability**: Utility functions can be used independently
-4. **Readability**: Code organization makes it easier to understand
-5. **Scalability**: Easy to add new features or modify existing ones
-
----
-
-## Future Enhancements
-
-Potential areas for expansion:
-
-- Add more mask processing algorithms
-- Support different ML models
-- Add batch processing capabilities
-- Implement caching mechanisms
-- Add more background composition options
