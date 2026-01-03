@@ -16,7 +16,7 @@ class BackgroundRemover {
 
   static BackgroundRemover get instance => _instance;
 
-  // The ONNX runtime instance
+  // Migration: Added OnnxRuntime instance for flutter_onnxruntime package
   final OnnxRuntime _ort = OnnxRuntime();
 
   // The ONNX session used for inference.
@@ -33,7 +33,7 @@ class BackgroundRemover {
   /// This method should be called once before using the [removeBg] method.
   Future<void> initializeOrt() async {
     try {
-      /// Create the ONNX session.
+      /// Migration: Removed OrtEnv.instance.init() - not needed in flutter_onnxruntime
       await _createSession();
     } catch (e) {
       log(e.toString());
@@ -43,7 +43,7 @@ class BackgroundRemover {
   /// Creates an ONNX session using the model from assets.
   Future<void> _createSession() async {
     try {
-      /// Create the ONNX session from asset.
+      /// Migration: Simplified to use createSessionFromAsset() instead of manual buffer loading
       _session = await _ort.createSessionFromAsset(Assets.modelPath);
 
       if (kDebugMode) {
@@ -97,6 +97,8 @@ class BackgroundRemover {
 
     /// Convert the resized image into a tensor format required by the ONNX model.
     final rgbFloats = await _imageToFloatTensor(resizedImage);
+
+    /// Migration: Changed from OrtValueTensor.createTensorWithDataList to OrtValue.fromList
     final inputTensor = await OrtValue.fromList(
       Float32List.fromList(rgbFloats),
       [1, 3, modelSize, modelSize],
@@ -104,17 +106,20 @@ class BackgroundRemover {
 
     /// Prepare the inputs and run inference on the ONNX model.
     final inputs = {'input.1': inputTensor};
+
+    /// Migration: Simplified to use run() instead of runAsync() with OrtRunOptions
     final outputs = await _session!.run(inputs);
 
-    /// Dispose the input tensor
+    /// Migration: Proper tensor disposal for memory management
     await inputTensor.dispose();
 
     /// Process the output tensor and generate the final image with the background removed.
+    /// Migration: Access outputs using named output instead of indexed access
     final outputName = _session!.outputNames.first;
     final outputTensor = outputs[outputName];
 
     if (outputTensor != null) {
-      // Get the data as a list with shape preserved
+      /// Migration: Use asList() to get data with proper shape preservation
       final outputData = await outputTensor.asList();
       final mask = outputData[0][0];
 
@@ -132,7 +137,7 @@ class BackgroundRemover {
       result = await _applyMaskToOriginalSizeImage(originalImage, finalMask,
           threshold: threshold, smooth: smoothMask);
 
-      /// Dispose output tensor
+      /// Migration: Dispose output tensor to free native resources
       await outputTensor.dispose();
     } else {
       throw Exception('Unexpected output format from ONNX model.');
@@ -413,6 +418,7 @@ class BackgroundRemover {
   }
 
   /// Release resources
+  /// Migration: Changed to async and use close() instead of release(), removed OrtEnv.instance.release()
   Future<void> dispose() async {
     if (_session != null) {
       await _session!.close();
