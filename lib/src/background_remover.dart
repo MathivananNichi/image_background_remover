@@ -148,7 +148,7 @@ class BackgroundRemover {
       throw Exception("ONNX session not initialized");
     }
 
-    final ui.Image result;
+
 
     // Compress image if needed to prevent memory issues
     final compressedBytes = await _compressImageIfNeeded(imageBytes);
@@ -218,15 +218,6 @@ class BackgroundRemover {
       result?.dispose();
     }
 
-    /// Release the ONNX session resources
-    outputs?.forEach((output) {
-      output?.release();
-    });
-
-    originalImage.dispose();
-    resizedImage.dispose();
-
-    return result;
   }
 
   /// Resizes the input image to the specified dimensions.
