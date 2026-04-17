@@ -496,10 +496,10 @@ class BackgroundRemover {
 
     // ✅ Convert img.Image → Uint8List
     final compressedBytes = Uint8List.fromList(
-      img.encodeJpg(compressed, quality: 85),
+      img.encodeJpg(compressed),
     );
 
-    // ✅ Convert Uint8List → ui.Image
+    // ✅ Convert Uint8List → ui.`Image
     return await decodeImageFromList(compressedBytes);
   }
 
