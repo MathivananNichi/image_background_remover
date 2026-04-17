@@ -88,7 +88,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     TextButton(
                       onPressed: () async {
                         Uint8List data = await BackgroundRemover.instance
-                            .removeBgBytes(image.readAsBytesSync());
+                            .removeBg(image.readAsBytesSync());
 
 
                         // ✅ Convert Uint8List → ui.Image
