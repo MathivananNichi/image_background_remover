@@ -14,7 +14,7 @@ dependencies:
 
   #Due to low maintainace of this package we are migrating to new alternative package.
   #onnxruntime: ^1.4.1
-  onnxruntime: ^1.4.1
+  flutter_onnxruntime: ^1.6.1
 
 dev_dependencies:
   flutter_test:

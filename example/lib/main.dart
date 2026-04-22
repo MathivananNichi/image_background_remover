@@ -87,12 +87,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     TextButton(
                       onPressed: () async {
-                        Uint8List data = await BackgroundRemover.instance
+                        var data = await BackgroundRemover.instance
                             .removeBg(image.readAsBytesSync());
 
 
                         // ✅ Convert Uint8List → ui.Image
-                        outImg.value =  await decodeImageFromList(data);
+                        outImg.value =  data;
 
                       },
                       child: const Text('Remove Background'),
