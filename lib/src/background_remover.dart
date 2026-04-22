@@ -291,10 +291,10 @@ class BackgroundRemover {
 
     // Step 2: Apply outer stroke (only to transparent areas near edges)
     final outerRadius = (innerBorderWidth + outerBorderWidth).round();
-    final outerR = outerBorderColor.r.round();
-    final outerG = outerBorderColor.g.round();
-    final outerB = outerBorderColor.b.round();
-    final outerA = outerBorderColor.a.round();
+    final outerR = outerBorderColor.red;
+    final outerG = outerBorderColor.green;
+    final outerB = outerBorderColor.blue;
+    final outerA = (outerBorderColor.opacity * 255).round();
 
     for (final point in edgePoints) {
       for (int dy = -outerRadius; dy <= outerRadius; dy++) {
